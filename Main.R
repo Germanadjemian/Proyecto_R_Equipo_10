@@ -22,12 +22,7 @@ all_individual_items <- CPI_Japon |>
          -all_items_less_fresh_food_and_energy,
          -all_items_less_food_less_alcoholic_beverages_and_energy)
 
-# Quitamos columna con NA's (si existe)
-if ("water_sewerage_charges" %in% names(all_individual_items)) {
-  all_individual_items <- all_individual_items |> select(-water_sewerage_charges)
-}
-
-# Filtramos años extremos
+# Tomamos los años de princpio y fin de la muestra para ver la variación
 year_1970_individual_items <- all_individual_items |> filter(year == 1970)
 year_2020_individual_items <- all_individual_items |> filter(year == 2020)
 
@@ -48,10 +43,14 @@ all_items <- CPI_Japon |> select(year, all_items)
 all_individual_items_clean <- na.omit(all_individual_items)
 
 # Comprobación de concordancia con promedio de ítems individuales
-all_individual_items_prom <- rowMeans(all_individual_items |> select(-year))
-all_individual_items_prom_cleaned <- rowMeans(all_individual_items_clean |> select(-year))
+all_individual_items_prom <- rowMeans(all_individual_items |> select(-year), na.rm = TRUE) #Ahora esto hace que descuente los NA y divide entre n columnas menos, equivalente al num de NA que haya en la observación
+all_individual_items_prom_only_with_complete_rows <- rowMeans(all_individual_items_clean |> select(-year))
+
+#Agrego el promedio casero a estos dataframes
+all_individual_items <- all_individual_items |> mutate (prom = rowMeans(select(all_individual_items, -year), na.rm = TRUE)) #El punto es para referirse al datraframe actual, osea all_individual_items
 
 # Resultados
-all_items
-head(all_individual_items_prom)
-head(all_individual_items_prom_cleaned)
+view(all_items)
+view(all_individual_items)
+all_individual_items_prom
+all_individual_items_prom_only_with_complete_rows
