@@ -1,69 +1,57 @@
-#Cargamos las librerías a usar durante el proyecto (algunas quizas no las usamos pero por ahora ante la duda las cargamos, en todo caso luego las sacamos)
+# Cargamos librerías
 library(tidyverse)
 library(readxl)
 library(writexl)
-library(haven) # importar datos de paquetes estadísticos (Stata, SPSS, SAS)
-library(janitor) #Para limpiar
+library(haven)    # importar datos de paquetes estadísticos (Stata, SPSS, SAS)
+library(janitor)  # limpiar nombres
 
+# COMIENZA
+CPI_Japon <- read_csv("2022_Japan_CPI_GoodsAndServiceClassificationIndex.csv") |> 
+  clean_names()  # limpiamos de entrada
 
-#COMIENZA
-#Este es el dataframe original, contiene datos del CPI de Japón desde 1970 hasta 2022
-CPI_Japon <- read_csv("2022_Japan_CPI_GoodsAndServiceClassificationIndex.csv") 
-
-#Primero vamos a ver el resumen, porque tiene 53 filas (observaciones) con 79 datos cada una
-str(CPI_Japon)#Luego de ejecutar esto, lo primero que podemos observar es que todos los datos del datasett son de tipo double
+# Exploración inicial
+str(CPI_Japon)
 summary(CPI_Japon)
 
+# Filtramos solo los ítems individuales (quitamos los agregados)
+all_individual_items <- CPI_Japon |>
+  select(-all_items,
+         -all_items_less_fresh_food,
+         -all_items_less_imputed_rent,
+         -all_items_less_imputed_rent_fresh_food,
+         -all_items_less_fresh_food_and_energy,
+         -all_items_less_food_less_alcoholic_beverages_and_energy)
 
-#Agarro todos los demás elementos por separado y limpio los nombres de las columnas
-all_individual_items <- CPI_Japon|>
-  select(-"All items",-"All items, less fresh food", 
-         -"All items, less imputed rent", -"All items, less imputed rent & fresh food", 
-         -"All items, less fresh food and energy", 
-         -"All items, less food (less alcoholic beverages) and energy") |> 
-  clean_names() 
+# Quitamos columna con NA's (si existe)
+if ("water_sewerage_charges" %in% names(all_individual_items)) {
+  all_individual_items <- all_individual_items |> select(-water_sewerage_charges)
+}
 
+# Filtramos años extremos
+year_1970_individual_items <- all_individual_items |> filter(year == 1970)
+year_2020_individual_items <- all_individual_items |> filter(year == 2020)
 
-#Saco la columna que tiene NA's
-all_individual_items <- all_individual_items |> 
-                      select(-"water_sewerage_charges")
+# Calculamos variación en 50 años
+variation_50_years <- year_2020_individual_items |> select(-year) - 
+  year_1970_individual_items |> select(-year)
 
-#Filtro los valores para el año de inicio
-year_1970_individual_items <- all_individual_items |> 
-                              filter(year == 1970)
-
-#Filtro los valores para el año de fin
-year_2020_individual_items <- all_individual_items |> 
-                              filter(year == 2020)
-
-#Calculo la variación de los productos en esos años
-variation_50_years = year_2020_individual_items |> select(-"year") - year_1970_individual_items |> select(-"year")
-
-#Obtengo los valores y 
+# Top 5 variaciones
 values <- as.numeric(variation_50_years[1, ])
 names <- names(variation_50_years)
-
-# Ordenar de mayor a menor y obtener los nombres de las 5 columnas con mayor valor
 top5_names <- names[order(values, decreasing = TRUE)[1:5]]
+variation_top5 <- variation_50_years[, top5_names]
 
-# Extraer esas columnas
-variation_top5 <- variation_50_years[, top5_names, drop = FALSE]
+# CPI general (all items)
+all_items <- CPI_Japon |> select(year, all_items)
 
-#Agarro el CPI de todos los productos juntos según el datasett
-all_items <- CPI_Japon|>
-                      select("year","all_items")
-all_items
-
-
-all_individual_items
-
+# Eliminamos filas con NA's
 all_individual_items_clean <- na.omit(all_individual_items)
-                                         
-#Chequeamos que haya concordancia entre el campo all_items y el promedio de all_individual_items
-all_individual_items_prom <-rowSums(all_individual_items)/length(all_individual_items)
-all_individual_items_prom
-all_individual_items_prom_cleaned <- rowSums(all_individual_items_clean)/length(all_individual_items_clean)
-all_individual_items_prom_cleaned
 
+# Comprobación de concordancia con promedio de ítems individuales
+all_individual_items_prom <- rowMeans(all_individual_items |> select(-year))
+all_individual_items_prom_cleaned <- rowMeans(all_individual_items_clean |> select(-year))
 
-                                         
+# Resultados
+all_items
+head(all_individual_items_prom)
+head(all_individual_items_prom_cleaned)
