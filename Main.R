@@ -53,7 +53,6 @@ all_individual_items <- all_individual_items |> mutate (prom = rowMeans(select(a
 view(all_items)
 view(all_individual_items)
 all_individual_items_prom
-<<<<<<< HEAD
 all_individual_items_prom_only_with_complete_rows
 
 
@@ -85,6 +84,3 @@ CPI_Japon[1,35] #Ejemplo de como comprobar que las posiciones que nos dio la fun
 
 
 ##### Parte 3 Análisis exploratorio de datos (EDA) #####
-=======
-all_individual_items_prom_only_with_complete_rows
->>>>>>> b7e03b1d3144ca9ffa3a8ee9443f975a180c8b06
