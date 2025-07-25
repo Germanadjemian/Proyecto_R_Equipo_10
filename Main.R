@@ -4,6 +4,8 @@ library(readxl)
 library(writexl)
 library(haven)    # importar datos de paquetes estadísticos (Stata, SPSS, SAS)
 library(janitor)  # limpiar nombres
+library(dplyr)
+library(ggplot2)
 
 # COMIENZA
 CPI_Japon <- read_csv("2022_Japan_CPI_GoodsAndServiceClassificationIndex.csv") |> 
@@ -81,6 +83,78 @@ CPI_Japon[1,35] #Ejemplo de como comprobar que las posiciones que nos dio la fun
 # Podemos observar que aparecen muchos NA en la columna 35 con las primeras observaciones
 #También podemos observar que aparecen muchos NA en las ultimas columnas, en especial en la 79, hasta la 35a observación
 #Todo esto pueden ser indicadores o revelar sesgos o pistas de posibles acontecimientos, por ejemplo que hace tiempo, no se teníam en cuenta estos daatos, quizás porque no se podían medir o no se consideraban importantes.
+
+
+
+# Parte 3 -----------------------------------------------------------------
+
+# 3.i ---------------------------------------------------------------------
+
+all_items_variation <- all_items |> 
+          mutate(varation_all_items = all_items - lag(all_items))
+
+all_items_variation <- all_items_variation |> 
+          filter(year != 1970)
+
+all_items_variation$variation_group <- cut(all_items_variation$varation_all_items,
+                                      breaks = c(-Inf, 0, 2, 4, Inf))
+#se pueden probar otras franjas de agrupacion
+
+### Calculo la frecuencia absoluta y relativa
+
+all_items_variation |> 
+  count(variation_group, name = "frec_abs") |> 
+  mutate(freq_rel=frec_abs/sum(frec_abs)*100) |> 
+  adorn_totals()
+
+
+# 3.ii --------------------------------------------------------------------
+
+### Calculo la media y la mediana de la variacion interanual
+all_items_variation |> 
+                summarise(
+                  media= mean(varation_all_items),
+                  mediana= median(varation_all_items),
+                  desv_est= sd(varation_all_items),
+                  coef_var= desv_est*100/mean(varation_all_items)
+                )
+
+
+# 3.iii -------------------------------------------------------------------
+
+### Gráfico de Barras
+cantidades = all_items_variation |> 
+      count(variation_group, name = "cant") 
+
+categories = as.character(c(cantidades$variation_group))
+
+cant = as.numeric(c(cantidades$cant)) 
+
+colores <- c("red", "orange", "skyblue", "darkgreen")
+
+barplot(cant, names.arg = categories, main = "Gráfico de Barras",
+         xlab = "Intervalos", ylab = "Cantidades", col = colores)
+
+
+
+### Gráfico de dispersión
+all_items_variation |> 
+          ggplot(aes(x=year,y=varation_all_items))+
+          geom_point()
+
+## Boxplot
+
+all_items_variation |> 
+          ggplot(aes(x=year, y = varation_all_items))+
+          geom_boxplot(fill = "lightgreen") +
+          labs(title = "Boxplot de Variación All Items por Grupo",
+               x = "Grupo de Variación",
+               y = "Variación All Items")
+
+
+
+
+
 
 
 ##### Parte 3 Análisis exploratorio de datos (EDA) #####
