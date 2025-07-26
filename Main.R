@@ -58,6 +58,21 @@ all_individual_items_prom
 all_individual_items_prom_only_with_complete_rows
 
 
+all_items_and_food <- CPI_Japon |>
+                           select(
+                                  year,
+                                  all_items,
+                                  food
+                                  )
+
+all_items_and_food <- all_items_and_food |> 
+                          mutate(varation_all_items = all_items - lag(all_items)) |> 
+                          mutate(varation_food = food - lag(food))
+
+all_items_and_food <- all_items_and_food |> 
+                          filter(year != 1970)
+
+
 ################################### FORMALIDADES ################################### 
 
 ###### Parte 2 Análisis del dataset (tomamos el datasett original) #####
@@ -130,29 +145,37 @@ categories = as.character(c(cantidades$variation_group))
 
 cant = as.numeric(c(cantidades$cant)) 
 
-colores <- c("red", "orange", "skyblue", "darkgreen")
+colores <- c("red", "orange", "deepskyblue", "darkgreen")
 
 barplot(cant, names.arg = categories, main = "Gráfico de Barras",
          xlab = "Intervalos", ylab = "Cantidades", col = colores)
 
 
+all_items_variation |> 
+          ggplot(aes(x=variation_group))+
+          geom_bar(fill = colores)
+
 
 ### Gráfico de dispersión
-all_items_variation |> 
-          ggplot(aes(x=year,y=varation_all_items))+
-          geom_point()
+all_items_and_food |> 
+          ggplot(aes(x=varation_food,y=varation_all_items))+
+          geom_point(color = "blue")
+
+all_items_and_food |> 
+          summarise(cor_all_items_food = cor(varation_food,varation_all_items))
+
+# están muy relacionadas
+
 
 ## Boxplot
 
 all_items_variation |> 
-          ggplot(aes(x=year, y = varation_all_items))+
-          geom_boxplot(fill = "lightgreen") +
-          labs(title = "Boxplot de Variación All Items por Grupo",
-               x = "Grupo de Variación",
-               y = "Variación All Items")
+          ggplot(aes(varation_all_items))+
+          geom_boxplot(fill = "mediumaquamarine", color = "black") 
+       
 
 
-
+## Gráfico de línea
 
 
 
