@@ -6,76 +6,14 @@ library(haven)    # importar datos de paquetes estadísticos (Stata, SPSS, SAS)
 library(janitor)  # limpiar nombres
 library(dplyr)
 library(ggplot2)
+library(pheatmap)
 
 # COMIENZA
 CPI_Japon <- read_csv("2022_Japan_CPI_GoodsAndServiceClassificationIndex.csv") |> 
   clean_names()  # limpiamos de entrada
 
-# Exploración inicial
-str(CPI_Japon)
-summary(CPI_Japon)
 
-# Filtramos solo los ítems individuales (quitamos los agregados)
-all_individual_items <- CPI_Japon |>
-  select(-all_items,
-         -all_items_less_fresh_food,
-         -all_items_less_imputed_rent,
-         -all_items_less_imputed_rent_fresh_food,
-         -all_items_less_fresh_food_and_energy,
-         -all_items_less_food_less_alcoholic_beverages_and_energy)
-
-# Tomamos los años de princpio y fin de la muestra para ver la variación
-year_1970_individual_items <- all_individual_items |> filter(year == 1970)
-year_2020_individual_items <- all_individual_items |> filter(year == 2020)
-
-# Calculamos variación en 50 años
-variation_50_years <- year_2020_individual_items |> select(-year) - 
-  year_1970_individual_items |> select(-year)
-
-# Top 5 variaciones
-values <- as.numeric(variation_50_years[1, ])
-names <- names(variation_50_years)
-top5_names <- names[order(values, decreasing = TRUE)[1:5]]
-variation_top5 <- variation_50_years[, top5_names]
-
-# CPI general (all items)
-all_items <- CPI_Japon |> select(year, all_items)
-
-# Eliminamos filas con NA's
-all_individual_items_clean <- na.omit(all_individual_items)
-
-# Comprobación de concordancia con promedio de ítems individuales
-all_individual_items_prom <- rowMeans(all_individual_items |> select(-year), na.rm = TRUE) #Ahora esto hace que descuente los NA y divide entre n columnas menos, equivalente al num de NA que haya en la observación
-all_individual_items_prom_only_with_complete_rows <- rowMeans(all_individual_items_clean |> select(-year))
-
-#Agrego el promedio casero a estos dataframes
-all_individual_items <- all_individual_items |> mutate (prom = rowMeans(select(all_individual_items, -year), na.rm = TRUE)) #El punto es para referirse al datraframe actual, osea all_individual_items
-
-# Resultados
-view(all_items)
-view(all_individual_items)
-all_individual_items_prom
-all_individual_items_prom_only_with_complete_rows
-
-
-all_items_and_food <- CPI_Japon |>
-                           select(
-                                  year,
-                                  all_items,
-                                  food
-                                  )
-
-all_items_and_food <- all_items_and_food |> 
-                          mutate(varation_all_items = all_items - lag(all_items)) |> 
-                          mutate(varation_food = food - lag(food))
-
-all_items_and_food <- all_items_and_food |> 
-                          filter(year != 1970)
-
-
-################################### FORMALIDADES ################################### 
-
-###### Parte 2 Análisis del dataset (tomamos el datasett original) #####
+# Parte 2 Análisis del dataset -----------------------------------------------------------------
 print("PARTE 2 \n")
 #Cantidad de filas y columnas
 print(paste("número de filas:", nrow(CPI_Japon), "|","número de columnas:", ncol(CPI_Japon)))
@@ -101,83 +39,242 @@ CPI_Japon[1,35] #Ejemplo de como comprobar que las posiciones que nos dio la fun
 
 
 
-# Parte 3 -----------------------------------------------------------------
+# Parte 3  Análisis exploratorio de datos (EDA)  -----------------------------------------------------------------
 
-# 3.i ---------------------------------------------------------------------
 
+# ANTES DE PROSEGUIR CON ESTA PARTE INSTANCIAMOS LAS VARIABLES A USAR Y HACEMOS LIMPIEZA
+
+# CPI general (all items)
+all_items <- CPI_Japon |> select(year, all_items)
+
+# Filtramos solo los ítems individuales (quitamos los agregados)
+all_individual_items <- CPI_Japon |>
+  select(-all_items,
+         -all_items_less_fresh_food,
+         -all_items_less_imputed_rent,
+         -all_items_less_imputed_rent_fresh_food,
+         -all_items_less_fresh_food_and_energy,
+         -all_items_less_food_less_alcoholic_beverages_and_energy)
+
+# Tomamos los años de princpio y fin de la muestra para ver la variación
+year_1970_individual_items <- all_individual_items |> filter(year == 1970)
+year_2020_individual_items <- all_individual_items |> filter(year == 2020)
+
+#Deducimos la variación total del CPI en los últimos 50 años
+variation_50_years <- year_2020_individual_items |> select(-year) - 
+  year_1970_individual_items |> select(-year)
+
+
+#Agrego el promedio casero a estos dataframes
+all_individual_items <- all_individual_items |> mutate (prom = rowMeans(select(all_individual_items, -year), na.rm = TRUE)) 
+
+#vemos que el "promedio casero" no concuerda con el valor de all_items del dataframe original, lo que confirma que este fue hecho con ponderaciones
+view(all_items)
+view(all_individual_items)
+
+
+#Hacemos la variacion del CPI de todos los items año a año
 all_items_variation <- all_items |> 
-          mutate(varation_all_items = all_items - lag(all_items))
+  mutate(varation_all_items = all_items - lag(all_items))
 
 all_items_variation <- all_items_variation |> 
-          filter(year != 1970)
+  filter(year != 1970)
 
 all_items_variation$variation_group <- cut(all_items_variation$varation_all_items,
-                                      breaks = c(-Inf, 0, 2, 4, Inf))
-#se pueden probar otras franjas de agrupacion
+                                           breaks = c(-Inf, 0, 2, 4, Inf)) #Estas son las franjas que elejimos 
+                                            #Las elejimos para posteriormente usarlas a modo de variables categoricas
+
+#Instanciamos el subdataframe que usaremos para la correlación
+all_items_and_food <- CPI_Japon |>
+  select(
+    year,
+    all_items,
+    food
+  )
+
+all_items_and_food <- all_items_and_food |> 
+  mutate(varation_all_items = all_items - lag(all_items)) |> 
+  mutate(varation_food = food - lag(food))
+
+all_items_and_food <- all_items_and_food |> 
+  filter(year != 1970)
+
+
+
+## 3.i ---------------------------------------------------------------------
 
 ### Calculo la frecuencia absoluta y relativa
 
 all_items_variation |> 
-  count(variation_group, name = "frec_abs") |> 
-  mutate(freq_rel=frec_abs/sum(frec_abs)*100) |> 
-  adorn_totals()
+  count(variation_group, name = "frec_abs") |> #Con count contamos las veces que aparece cada variable (categórica)
+  mutate(freq_rel=frec_abs/sum(frec_abs)*100) |> #usamos un mutate sobre la respuesta de ese count para calcular la frec rel
+  adorn_totals() #Agrega una fila final con los totales 
 
 
-# 3.ii --------------------------------------------------------------------
+## 3.ii --------------------------------------------------------------------
+#Estadísticos descriptivos de por lo menos una variable: media, mediana, desviación estándar.
+
+summary(CPI_Japon) #Acá están los cálculos con respecto al datasett original
+# CPI general (all items)
 
 ### Calculo la media y la mediana de la variacion interanual
+
+
 all_items_variation |> 
-                summarise(
-                  media= mean(varation_all_items),
-                  mediana= median(varation_all_items),
-                  desv_est= sd(varation_all_items),
-                  coef_var= desv_est*100/mean(varation_all_items)
-                )
+  summarise(
+    media= mean(varation_all_items),
+    mediana= median(varation_all_items),
+    desv_est= sd(varation_all_items),
+    coef_var= desv_est*100/mean(varation_all_items)
+  )
 
 
-# 3.iii -------------------------------------------------------------------
+## 3.iii -------------------------------------------------------------------
 
 ### Gráfico de Barras
-cantidades = all_items_variation |> 
-      count(variation_group, name = "cant") 
 
-categories = as.character(c(cantidades$variation_group))
-
-cant = as.numeric(c(cantidades$cant)) 
-
-colores <- c("red", "orange", "deepskyblue", "darkgreen")
-
-barplot(cant, names.arg = categories, main = "Gráfico de Barras",
-         xlab = "Intervalos", ylab = "Cantidades", col = colores)
+colores <- c("lightblue", "mediumaquamarine", "wheat2", "plum") #Vector de colores para emprolijar la gráfica
 
 
 all_items_variation |> 
-          ggplot(aes(x=variation_group))+
-          geom_bar(fill = colores)
+  ggplot(aes(x=variation_group))+
+  geom_bar(fill = colores)
 
 
 ### Gráfico de dispersión
 all_items_and_food |> 
-          ggplot(aes(x=varation_food,y=varation_all_items))+
-          geom_point(color = "blue")
+  ggplot(aes(x=varation_food,y=varation_all_items))+
+  geom_point(color = "rosybrown")
 
 all_items_and_food |> 
-          summarise(cor_all_items_food = cor(varation_food,varation_all_items))
+  summarise(cor_all_items_food = cor(varation_food,varation_all_items))
 
-# están muy relacionadas
+# están muy corelacionadas positivamente
 
 
 ## Boxplot
 
 all_items_variation |> 
-          ggplot(aes(varation_all_items))+
-          geom_boxplot(fill = "mediumaquamarine", color = "black") 
-       
+  ggplot(aes(varation_all_items))+
+  geom_boxplot(fill = "mediumaquamarine", color = "black") 
 
 
 ## Gráfico de línea
 
 
+#Gráfica de la evolución de los valores absolutos del CPI de: all items, food, all items less fresh food
+CPI_Japon |>
+  select(year, all_items, food, all_items_less_fresh_food) |> 
+  ggplot(aes(x = year)) +
+  geom_line(aes(y = all_items, color = "All Items"), size = 1) +
+  geom_line(aes(y = food, color = "Food"), size = 0.5) +
+  geom_line(aes(y = all_items_less_fresh_food, color = "All Items Less Fresh Food"), size = 0.5) +
+  labs(
+    title = "Evolución del CPI: General vs Comida vs All Items sin incluir fresh food",
+    x = "Año",
+    y = "Índice CPI",
+    color = "Categoría"
+  ) +
+  theme_minimal()
+
+#Gráfica de la evolución de la variación del CPI de: all items, food, all items less fresh food
+
+# Primero agregamos la variación de all_items_less_fresh_food al df que ya existe (y le sacamos el año 1970)
+all_items_and_food_and_all_items_less_fresh_food <- CPI_Japon |>
+  select(year, all_items, food, all_items_less_fresh_food) |>
+  mutate(
+    varation_all_items = all_items - lag(all_items),
+    varation_food = food - lag(food),
+    varation_all_items_less_fresh_food = all_items_less_fresh_food - lag(all_items_less_fresh_food)
+  ) |>
+  filter(year != 1970)
+
+  
+#Y ahora sí, gráficamos
+all_items_and_food_and_all_items_less_fresh_food |>
+    ggplot(aes(x = year)) +
+    geom_line(aes(y = varation_all_items, color = "Var. All Items"), size = 1) +
+    geom_line(aes(y = varation_food, color = "Var. Food"), size = 0.5) +
+    geom_line(aes(y = varation_all_items_less_fresh_food, color = "Var. All Items Less Fresh Food"), size = 0.5) +
+    labs(
+      title = "Variación interanual del CPI: General vs Comida vs All Items sin incluir Fresh Food",
+      x = "Año",
+      y = "Variación interanual (%)",
+      color = "Categoría"
+    ) +
+    theme_minimal()
+  
+
+#Para responder a nuestra pregunta
+
+  # Top 5 variaciones
+  values <- as.numeric(variation_50_years[1, ])
+  names <- names(variation_50_years)
+  top5_names <- names[order(values, decreasing = TRUE)[1:5]]
+  variation_top5 <- variation_50_years[, top5_names]
+  variation_top5
 
 
-##### Parte 3 Análisis exploratorio de datos (EDA) #####
+  # Realizamos una matriz de correlaciones para visualizar el impacto de estas variables entre sí y con el general (all_items)
+  
+  significant_items <- CPI_Japon |> 
+    select(year, all_items, other_miscellaneous, school_fees, personal_care_services, education, tobacco)
+  
+  # Hacemos la variación interanual del CPI de los items significantes (top 5) año a año
+  significant_items_variation <- significant_items |> 
+    mutate(
+      var_all_items = all_items - lag(all_items),
+      var_other_miscellaneous = other_miscellaneous - lag(other_miscellaneous),
+      var_school_fees = school_fees - lag(school_fees),
+      var_personal_care_services = personal_care_services - lag(personal_care_services),
+      var_education = education - lag(education),
+      var_tobacco = tobacco - lag(tobacco)
+    ) |> 
+    filter(!is.na(var_all_items))  # quitamos la fila 1970 que tiene NA
+  
+  
+  significant_items_variation |>
+    ggplot(aes(x = year)) +
+    geom_line(aes(y = var_all_items, color = "Var. All Items"), size = 1) +
+    geom_line(aes(y = var_other_miscellaneous, color = "Var. Other Miscellaneous"), size = 0.5) +
+    geom_line(aes(y = var_school_fees, color = "Var. School Fees"), size = 0.5) +
+    geom_line(aes(y = var_personal_care_services, color = "Var. Personal Care Services"), size = 0.5) +
+    geom_line(aes(y = var_education, color = "Var. Education"), size = 0.5) +
+    geom_line(aes(y = var_tobacco, color = "Var. Tobacco"), size = 0.5) +
+    labs(
+      title = "Variación interanual del CPI: 5 categorías con mayor variación y General",
+      x = "Año",
+      y = "Variación interanual (%)",
+      color = "Categoría"
+    ) +
+    theme_minimal()
+  
+  # Nos quedamos solo con las columnas de variaciones, es casi como usar un IN pero solo aplica al principio
+  variations_only <- significant_items_variation |> 
+    select(starts_with("var_"))
+  
+  # Creamos la matriz de correlación
+  matriz <- variations_only |> 
+    select(where(is.numeric)) |>  
+    cor()
+  
+  
+  # Visualizamos con un heatmap
+  
+  pheatmap(
+    #matriz de correlación
+    matriz,
+    #pongo para que muestre el coeficiente de correlación en el gráfico
+    display_numbers = TRUE,        # muestra los coeficientes en el gráfico
+    #saco clustering
+    cluster_rows = FALSE, 
+    cluster_cols = FALSE,
+    main = "Correlación entre variaciones interanuales (Top 5 + All Items)"
+  )
+  
+  
+  
+
+
+
+
