@@ -101,7 +101,7 @@ all_items_and_food <- all_items_and_food |>
 
 
 
-# 3.i ---------------------------------------------------------------------
+## 3.i ---------------------------------------------------------------------
 
 ### Calculo la frecuencia absoluta y relativa
 
@@ -111,7 +111,7 @@ all_items_variation |>
   adorn_totals() #Agrega una fila final con los totales 
 
 
-# 3.ii --------------------------------------------------------------------
+## 3.ii --------------------------------------------------------------------
 #Estadísticos descriptivos de por lo menos una variable: media, mediana, desviación estándar.
 
 summary(CPI_Japon) #Acá están los cálculos con respecto al datasett original
@@ -129,11 +129,11 @@ all_items_variation |>
   )
 
 
-# 3.iii -------------------------------------------------------------------
+## 3.iii -------------------------------------------------------------------
 
 ### Gráfico de Barras
 
-colores <- c("red", "orange", "deepskyblue", "darkgreen") #Vector de colores para emprolijar la gráfica
+colores <- c("lightblue", "mediumaquamarine", "wheat2", "plum") #Vector de colores para emprolijar la gráfica
 
 
 all_items_variation |> 
@@ -144,7 +144,7 @@ all_items_variation |>
 ### Gráfico de dispersión
 all_items_and_food |> 
   ggplot(aes(x=varation_food,y=varation_all_items))+
-  geom_point(color = "blue")
+  geom_point(color = "rosybrown")
 
 all_items_and_food |> 
   summarise(cor_all_items_food = cor(varation_food,varation_all_items))
@@ -167,8 +167,8 @@ CPI_Japon |>
   select(year, all_items, food, all_items_less_fresh_food) |> 
   ggplot(aes(x = year)) +
   geom_line(aes(y = all_items, color = "All Items"), size = 1) +
-  geom_line(aes(y = food, color = "Food"), size = 1) +
-  geom_line(aes(y = all_items_less_fresh_food, color = "All Items Less Fresh Food"), size = 1) +
+  geom_line(aes(y = food, color = "Food"), size = 0.5) +
+  geom_line(aes(y = all_items_less_fresh_food, color = "All Items Less Fresh Food"), size = 0.5) +
   labs(
     title = "Evolución del CPI: General vs Comida vs All Items sin incluir fresh food",
     x = "Año",
@@ -194,8 +194,8 @@ all_items_and_food_and_all_items_less_fresh_food <- CPI_Japon |>
 all_items_and_food_and_all_items_less_fresh_food |>
     ggplot(aes(x = year)) +
     geom_line(aes(y = varation_all_items, color = "Var. All Items"), size = 1) +
-    geom_line(aes(y = varation_food, color = "Var. Food"), size = 1) +
-    geom_line(aes(y = varation_all_items_less_fresh_food, color = "Var. All Items Less Fresh Food"), size = 1) +
+    geom_line(aes(y = varation_food, color = "Var. Food"), size = 0.5) +
+    geom_line(aes(y = varation_all_items_less_fresh_food, color = "Var. All Items Less Fresh Food"), size = 0.5) +
     labs(
       title = "Variación interanual del CPI: General vs Comida vs All Items sin incluir Fresh Food",
       x = "Año",
@@ -218,7 +218,7 @@ all_items_and_food_and_all_items_less_fresh_food |>
   # Realizamos una matriz de correlaciones para visualizar el impacto de estas variables entre sí y con el general (all_items)
   
   significant_items <- CPI_Japon |> 
-    select(all_items, other_miscellaneous, school_fees, personal_care_services, education, tobacco)
+    select(year, all_items, other_miscellaneous, school_fees, personal_care_services, education, tobacco)
   
   # Hacemos la variación interanual del CPI de los items significantes (top 5) año a año
   significant_items_variation <- significant_items |> 
@@ -232,12 +232,29 @@ all_items_and_food_and_all_items_less_fresh_food |>
     ) |> 
     filter(!is.na(var_all_items))  # quitamos la fila 1970 que tiene NA
   
+  
+  significant_items_variation |>
+    ggplot(aes(x = year)) +
+    geom_line(aes(y = var_all_items, color = "Var. All Items"), size = 1) +
+    geom_line(aes(y = var_other_miscellaneous, color = "Var. Other Miscellaneous"), size = 0.5) +
+    geom_line(aes(y = var_school_fees, color = "Var. School Fees"), size = 0.5) +
+    geom_line(aes(y = var_personal_care_services, color = "Var. Personal Care Services"), size = 0.5) +
+    geom_line(aes(y = var_education, color = "Var. Education"), size = 0.5) +
+    geom_line(aes(y = var_tobacco, color = "Var. Tobacco"), size = 0.5) +
+    labs(
+      title = "Variación interanual del CPI: 5 categorías con mayor variación y General",
+      x = "Año",
+      y = "Variación interanual (%)",
+      color = "Categoría"
+    ) +
+    theme_minimal()
+  
   # Nos quedamos solo con las columnas de variaciones, es casi como usar un IN pero solo aplica al principio
   variations_only <- significant_items_variation |> 
     select(starts_with("var_"))
   
   # Creamos la matriz de correlación
-  matriz <- significant_items_variation |> 
+  matriz <- variations_only |> 
     select(where(is.numeric)) |>  
     cor()
   
