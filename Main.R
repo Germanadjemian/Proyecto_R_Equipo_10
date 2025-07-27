@@ -132,17 +132,8 @@ all_items_variation |>
 # 3.iii -------------------------------------------------------------------
 
 ### Gráfico de Barras
-cantidades = all_items_variation |> 
-  count(variation_group, name = "cant") 
 
-categories = as.character(c(cantidades$variation_group))
-
-cant = as.numeric(c(cantidades$cant)) 
-
-colores <- c("red", "orange", "deepskyblue", "darkgreen") #Vectir de colores para emprolijar la gráfica
-
-barplot(cant, names.arg = categories, main = "Gráfico de Barras",
-        xlab = "Intervalos", ylab = "Cantidades", col = colores)
+colores <- c("red", "orange", "deepskyblue", "darkgreen") #Vector de colores para emprolijar la gráfica
 
 
 all_items_variation |> 
@@ -158,7 +149,7 @@ all_items_and_food |>
 all_items_and_food |> 
   summarise(cor_all_items_food = cor(varation_food,varation_all_items))
 
-# están muy relacionadas
+# están muy corelacionadas positivamente
 
 
 ## Boxplot
@@ -200,7 +191,7 @@ all_items_and_food_and_all_items_less_fresh_food <- CPI_Japon |>
 
   
 #Y ahora sí, gráficamos
-  all_items_and_food_and_all_items_less_fresh_food |>
+all_items_and_food_and_all_items_less_fresh_food |>
     ggplot(aes(x = year)) +
     geom_line(aes(y = varation_all_items, color = "Var. All Items"), size = 1) +
     geom_line(aes(y = varation_food, color = "Var. Food"), size = 1) +
