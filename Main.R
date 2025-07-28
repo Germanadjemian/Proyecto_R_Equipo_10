@@ -8,6 +8,21 @@ library(dplyr)
 library(ggplot2)
 library(pheatmap)
 
+### Pregunta a GPT (no es el código final):
+        # Dado el siguiente contexto:
+        # clean_names(CPI_Japon)
+        # all_items <- CPI_Japon|>
+        #      select("All items")
+        # all_items
+        # 
+        # #Agarro todos los demás elementos por separado
+        # all_individual_items <- CPI_Japon|>
+        #   clean_name|>
+        #   select(-"Year", -"All items","All items, less fresh food", -"All items, less imputed rent", "All items, less imputed rent & fresh food", "All items, less fresh food and energy", "All items, less food (less alcoholic beverages) and energy")
+        # ¿Estoy usando mal el cleannames?
+        #¿Debería escribir correctamente el nombre de las columnas en función a como quedaron luego de la limpieza?
+        #¿si las instancio de esta manera debería ser antes de hacer la limpieza y borrando el clean names en la asignacióndel all_individual_items?
+
 # COMIENZA
 CPI_Japon <- read_csv("2022_Japan_CPI_GoodsAndServiceClassificationIndex.csv") |> 
   clean_names()  # limpiamos de entrada
@@ -75,12 +90,14 @@ view(all_individual_items)
 
 #Hacemos la variacion del CPI de todos los items año a año
 all_items_variation <- all_items |> 
-  mutate(varation_all_items = all_items - lag(all_items))
+  mutate(variation_all_items = all_items - lag(all_items))
 
 all_items_variation <- all_items_variation |> 
   filter(year != 1970)
 
-all_items_variation$variation_group <- cut(all_items_variation$varation_all_items,
+### Pregunta a GPT: ¿Como usar funcion cut para intervalos en R?
+
+all_items_variation$variation_group <- cut(all_items_variation$variation_all_items,
                                            breaks = c(-Inf, 0, 2, 4, Inf)) #Estas son las franjas que elejimos 
                                             #Las elejimos para posteriormente usarlas a modo de variables categoricas
 
@@ -93,8 +110,8 @@ all_items_and_food <- CPI_Japon |>
   )
 
 all_items_and_food <- all_items_and_food |> 
-  mutate(varation_all_items = all_items - lag(all_items)) |> 
-  mutate(varation_food = food - lag(food))
+  mutate(variation_all_items = all_items - lag(all_items)) |> 
+  mutate(variation_food = food - lag(food))
 
 all_items_and_food <- all_items_and_food |> 
   filter(year != 1970)
@@ -122,14 +139,17 @@ summary(CPI_Japon) #Acá están los cálculos con respecto al datasett original
 
 all_items_variation |> 
   summarise(
-    media= mean(varation_all_items),
-    mediana= median(varation_all_items),
-    desv_est= sd(varation_all_items),
-    coef_var= desv_est*100/mean(varation_all_items)
+    media= mean(variation_all_items),
+    mediana= median(variation_all_items),
+    desv_est= sd(variation_all_items),
+    coef_var= desv_est*100/mean(variation_all_items)
   )
 
 
 ## 3.iii -------------------------------------------------------------------
+
+###Pregunta a GPT: ¿Como poner colores diferentes personalizados a 
+###                gráficos de barras en R con ggplot2?
 
 ### Gráfico de Barras
 
@@ -143,24 +163,44 @@ all_items_variation |>
 
 ### Gráfico de dispersión
 all_items_and_food |> 
-  ggplot(aes(x=varation_food,y=varation_all_items))+
+  ggplot(aes(x=variation_food,y=variation_all_items))+
   geom_point(color = "rosybrown")
 
+
+### Coeficiente de correlación
 all_items_and_food |> 
-  summarise(cor_all_items_food = cor(varation_food,varation_all_items))
+  summarise(cor_all_items_food = cor(variation_food,variation_all_items))
 
 # están muy corelacionadas positivamente
 
 
+###Gráfico de dispersión vs año
+all_items_variation |> 
+  ggplot(aes(x=year,y=variation_all_items))+
+  geom_point(color = "mediumaquamarine")
+
+
 ## Boxplot
 
+### Sin desagregar
 all_items_variation |> 
-  ggplot(aes(varation_all_items))+
-  geom_boxplot(fill = "mediumaquamarine", color = "black") 
+  ggplot(aes(variation_all_items))+
+  stat_boxplot(geom = "errorbar",  
+               width = 0.2) +
+  geom_boxplot(fill = "mediumaquamarine") 
 
 
-## Gráfico de línea
+### Desagregado por intervalos
+all_items_variation |> 
+  ggplot(aes(variation_all_items, variation_group))+
+  stat_boxplot(geom = "errorbar",  
+               width = 0.2) +
+  geom_boxplot(fill = "mediumaquamarine") 
 
+
+## Gráficos de líneas
+
+### Pregunta a GPT: ¿Como agregar mas de una linea a un gráfico de lineas con ggplot?
 
 #Gráfica de la evolución de los valores absolutos del CPI de: all items, food, all items less fresh food
 CPI_Japon |>
@@ -183,9 +223,9 @@ CPI_Japon |>
 all_items_and_food_and_all_items_less_fresh_food <- CPI_Japon |>
   select(year, all_items, food, all_items_less_fresh_food) |>
   mutate(
-    varation_all_items = all_items - lag(all_items),
-    varation_food = food - lag(food),
-    varation_all_items_less_fresh_food = all_items_less_fresh_food - lag(all_items_less_fresh_food)
+    variation_all_items = all_items - lag(all_items),
+    variation_food = food - lag(food),
+    variation_all_items_less_fresh_food = all_items_less_fresh_food - lag(all_items_less_fresh_food)
   ) |>
   filter(year != 1970)
 
@@ -193,9 +233,9 @@ all_items_and_food_and_all_items_less_fresh_food <- CPI_Japon |>
 #Y ahora sí, gráficamos
 all_items_and_food_and_all_items_less_fresh_food |>
     ggplot(aes(x = year)) +
-    geom_line(aes(y = varation_all_items, color = "Var. All Items"), size = 1) +
-    geom_line(aes(y = varation_food, color = "Var. Food"), size = 0.5) +
-    geom_line(aes(y = varation_all_items_less_fresh_food, color = "Var. All Items Less Fresh Food"), size = 0.5) +
+    geom_line(aes(y = variation_all_items, color = "Var. All Items"), size = 1) +
+    geom_line(aes(y = variation_food, color = "Var. Food"), size = 0.5) +
+    geom_line(aes(y = variation_all_items_less_fresh_food, color = "Var. All Items Less Fresh Food"), size = 0.5) +
     labs(
       title = "Variación interanual del CPI: General vs Comida vs All Items sin incluir Fresh Food",
       x = "Año",
