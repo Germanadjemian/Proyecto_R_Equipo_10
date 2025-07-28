@@ -24,7 +24,7 @@ Un conjunto robusto de datos que abarca precios de productos en distintos rubros
 ---
 
 ## 🌐 Nuestra Pregunta Elegida
-**¿La inflación afecta de forma diferente a distintos rubros de productos?**  
+**¿Cómo afectan los distintos rubros de productos y servicios en la inflación de Japón? **  
 Exploraremos cómo se comporta el Índice de Precios según el tipo de producto (alimentos, transporte, tecnología, etc.) y si algunos rubros son más vulnerables a los cambios económicos.
 
 ## 🚀 Metodología
